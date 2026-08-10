@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RIP O69 — ODCHÁZENÍ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-void: #0a0118;
+    --bg-screen: #170b2e;
+    --bg-screen-2: #20123f;
+    --neon-magenta: #ff2e97;
+    --neon-cyan: #00f0ff;
+    --gold-klimt: #d4af37;
+    --gold-dim: #8a6f1f;
+    --text-bone: #ece4d0;
+    --stone-grey: #7c7a82;
+    --stone-dark: #4a4852;
+    --grass: #1f6b3a;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background: var(--bg-void);
+    color: var(--text-bone);
+    font-family: 'VT323', monospace;
+    font-size: 22px;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* ---------- CRT scanline + vignette overlay ---------- */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 50;
+    background:
+      repeating-linear-gradient(
+        to bottom,
+        rgba(0,0,0,0) 0px,
+        rgba(0,0,0,0) 2px,
+        rgba(0,0,0,0.18) 3px,
+        rgba(0,0,0,0.18) 4px
+      );
+    mix-blend-mode: multiply;
+  }
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 51;
+    background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,0.55) 100%);
+  }
+
+  .pixel {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+
+  /* ================= TOP QUOTE TICKER ================= */
+  .ticker {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    overflow: hidden;
+    background: #000;
+    border-bottom: 3px solid var(--gold-klimt);
+    box-shadow: 0 2px 12px rgba(212,175,55,0.35);
+    padding: 9px 0;
+    white-space: nowrap;
+  }
+  .ticker-track {
+    display: inline-block;
+    white-space: nowrap;
+    font-family: 'VT323', monospace;
+    font-size: 22px;
+    color: var(--neon-cyan);
+    text-shadow: 0 0 6px rgba(0,240,255,0.5);
+    animation: ticker-scroll 55s linear infinite;
+    padding-left: 100%;
+  }
+  .ticker-track .author {
+    color: var(--gold-klimt);
+  }
+  .ticker-track .sep {
+    color: var(--neon-magenta);
+    margin: 0 28px;
+  }
+  @keyframes ticker-scroll {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ticker-track { animation: none; padding-left: 0; }
+  }
+
+  .stage {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 28px 18px 60px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ---------- Headline / marquee font ---------- */
+  .press {
+    font-family: 'Press Start 2P', monospace;
+  }
+
+  /* ================= TOMBSTONE (signature element) ================= */
+  .grave-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 22px;
+  }
+  .grave-scene {
+    width: 260px;
+    position: relative;
+  }
+  .grave-svg {
+    width: 100%;
+    display: block;
+  }
+  .grave-text {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    text-align: center;
+    font-family: 'Press Start 2P', monospace;
+    color: #2b2930;
+    line-height: 1.9;
+  }
+  .grave-text .rip {
+    display: block;
+    font-size: 15px;
+    margin-top: 46px;
+    letter-spacing: 2px;
+  }
+  .grave-text .dept {
+    display: block;
+    font-size: 20px;
+    margin-top: 10px;
+    color: #171620;
+  }
+  .grave-text .years {
+    display: block;
+    font-size: 10px;
+    margin-top: 8px;
+    color: #3a3742;
+  }
+  .candle {
+    position: absolute;
+    left: 50%;
+    bottom: 6px;
+    transform: translateX(-50%);
+    width: 6px;
+    height: 6px;
+    background: var(--gold-klimt);
+    box-shadow: 0 0 6px 3px var(--gold-klimt);
+    animation: flicker 1.6s infinite steps(4);
+  }
+  @keyframes flicker {
+    0%, 100% { opacity: 1; }
+    30% { opacity: .5; }
+    55% { opacity: .85; }
+    80% { opacity: .35; }
+  }
+
+  /* ================= ARCADE CABINET / TITLE IMAGE ================= */
+  .cabinet {
+    position: relative;
+    background: linear-gradient(180deg, var(--bg-screen-2), var(--bg-screen));
+    border: 4px solid var(--gold-dim);
+    border-radius: 10px;
+    padding: 18px;
+    box-shadow:
+      0 0 0 2px var(--bg-void),
+      0 0 24px rgba(212,175,55,0.25),
+      inset 0 0 30px rgba(0,0,0,0.6);
+  }
+  .cabinet::before, .cabinet::after {
+    content: "";
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    top: 8px;
+    background: var(--neon-cyan);
+    box-shadow: 0 0 8px 2px var(--neon-cyan);
+    animation: blink-slow 2.4s infinite;
+  }
+  .cabinet::before { left: 8px; }
+  .cabinet::after { right: 8px; animation-delay: 1.2s; }
+  @keyframes blink-slow {
+    0%, 45% { opacity: 1; }
+    50%, 95% { opacity: .15; }
+    100% { opacity: 1; }
+  }
+
+  .screen-frame {
+    border: 3px solid var(--bg-void);
+    border-radius: 4px;
+    overflow: hidden;
+    background: #000;
+    position: relative;
+  }
+  .screen-frame img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  .screen-frame::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    box-shadow: inset 0 0 40px rgba(0,0,0,0.65);
+    pointer-events: none;
+  }
+
+  .marquee-text {
+    text-align: center;
+    margin: 4px 0 22px;
+  }
+  .marquee-text .label {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 20px;
+    color: var(--neon-magenta);
+    text-shadow: 0 0 8px var(--neon-magenta), 0 0 18px rgba(255,46,151,0.55);
+    animation: blink-text 1.1s steps(1) infinite;
+  }
+  @keyframes blink-text {
+    0%, 60% { opacity: 1; }
+    61%, 100% { opacity: 0.25; }
+  }
+  .marquee-text .sub {
+    font-family: 'VT323', monospace;
+    font-size: 32px;
+    color: var(--gold-klimt);
+    letter-spacing: 1.5px;
+    margin-top: 6px;
+    text-shadow: 0 0 10px rgba(212,175,55,0.4);
+  }
+
+  /* ================= GALLERY ================= */
+  .gallery {
+    margin-top: 40px;
+  }
+  .gallery-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 12px;
+    color: var(--neon-cyan);
+    text-shadow: 0 0 6px var(--neon-cyan);
+    text-align: center;
+    margin-bottom: 14px;
+  }
+  .gallery-viewport {
+    position: relative;
+    border: 3px solid var(--gold-dim);
+    border-radius: 6px;
+    background: #000;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    box-shadow: 0 0 18px rgba(212,175,55,0.2), inset 0 0 24px rgba(0,0,0,0.7);
+  }
+  .gallery-slide {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.35s steps(6);
+    pointer-events: none;
+  }
+  .gallery-slide.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .gallery-slide img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .gallery-caption {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    padding: 8px 10px;
+    background: linear-gradient(0deg, rgba(0,0,0,0.85), rgba(0,0,0,0));
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    color: var(--text-bone);
+    line-height: 1.6;
+  }
+  .gallery-caption .tag {
+    color: var(--neon-magenta);
+  }
+
+  .gallery-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin-top: 14px;
+  }
+  .arcade-btn {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 14px;
+    color: var(--bg-void);
+    background: var(--neon-cyan);
+    border: none;
+    border-bottom: 4px solid #0090a0;
+    border-radius: 4px;
+    padding: 10px 14px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .arcade-btn:active {
+    border-bottom-width: 1px;
+    transform: translateY(3px);
+  }
+  .arcade-btn:focus-visible {
+    outline: 3px solid var(--neon-magenta);
+    outline-offset: 2px;
+  }
+
+  .dots {
+    display: flex;
+    gap: 8px;
+  }
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--stone-grey);
+    border: none;
+    cursor: pointer;
+    padding: 0;
+  }
+  .dot.active {
+    background: var(--gold-klimt);
+    box-shadow: 0 0 6px var(--gold-klimt);
+  }
+  .dot:focus-visible {
+    outline: 2px solid var(--neon-cyan);
+    outline-offset: 2px;
+  }
+
+  /* ================= FOOTER ================= */
+  .footer {
+    text-align: center;
+    margin-top: 46px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;
+    color: var(--stone-grey);
+    letter-spacing: 1px;
+  }
+  .footer .coin {
+    color: var(--gold-klimt);
+    animation: blink-text 1.3s steps(1) infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .candle, .cabinet::before, .cabinet::after, .marquee-text .label, .footer .coin {
+      animation: none !important;
+      opacity: 1 !important;
+    }
+  }
+
+  @media (max-width: 420px) {
+    body { font-size: 19px; }
+    .grave-scene { width: 210px; }
+    .grave-text .rip { font-size: 12px; margin-top: 36px; }
+    .grave-text .dept { font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!--
+  ============================================================
+  OBRAZKY K NAHRANI - uloz do STEJNE SLOZKY jako tento .html
+  soubor, presne pod temito nazvy (kod uz na ne odkazuje
+  relativni cestou, takze po nahrani se zobrazi automaticky):
+
+    poster.png    - titulni plakat (nahore v "arkadovem" ramu)
+    galerie1.png  - snimek galerie #1 "LEVEL 1"
+    galerie2.png  - snimek galerie #2 "BONUS ITEM"
+    galerie3.png  - snimek galerie #3 "FINAL BOSS"
+    galerie4.png  - snimek galerie #4 "SECRET"
+    galerie5.png  - snimek galerie #5 "GAME OVER"
+
+  Chces vic/min snimku v galerii? Uprav pole SLIDES ve skriptu na
+  konci souboru - kazdy radek je jeden snimek (src = nazev souboru,
+  tag/caption = popisek).
+  ============================================================
+-->
+
+<div class="ticker" role="marquee" aria-label="Citáty o odcházení">
+  <div class="ticker-track">
+    <span>„Bolest z opuštění bývá často menší než bolest z neustálého setrvávání.“ <span class="author">— Erich Maria Remarque</span></span>
+    <span class="sep">★</span>
+    <span>„Někdy musíte odejít, ne proto, aby si někdo všiml, že tam nejste, ale aby si všiml své vlastní hodnoty ten, kdo odešel.“ <span class="author">— Paulo Coelho</span></span>
+    <span class="sep">★</span>
+    <span>„Umění života spočívá v vědění, kdy držet a kdy nechat jít.“ <span class="author">— Lao-c'</span></span>
+    <span class="sep">★</span>
+    <span>„Ochota odejít z místa, kde už nevzkvétáte, je prvním krokem k tomu, abyste našli sami sebe.“ <span class="author">— Seneca</span></span>
+    <span class="sep">★</span>
+    <!-- obsah zopakovan pro bezesvy (seamless) loop animace -->
+    <span>„Bolest z opuštění bývá často menší než bolest z neustálého setrvávání.“ <span class="author">— Erich Maria Remarque</span></span>
+    <span class="sep">★</span>
+    <span>„Někdy musíte odejít, ne proto, aby si někdo všiml, že tam nejste, ale aby si všiml své vlastní hodnoty ten, kdo odešel.“ <span class="author">— Paulo Coelho</span></span>
+    <span class="sep">★</span>
+    <span>„Umění života spočívá v vědění, kdy držet a kdy nechat jít.“ <span class="author">— Lao-c'</span></span>
+    <span class="sep">★</span>
+    <span>„Ochota odejít z místa, kde už nevzkvétáte, je prvním krokem k tomu, abyste našli sami sebe.“ <span class="author">— Seneca</span></span>
+    <span class="sep">★</span>
+  </div>
+</div>
+
+<div class="stage">
+
+  <!-- ============ PIXEL TOMBSTONE ============ -->
+  <div class="grave-wrap">
+    <div class="grave-scene">
+      <svg class="grave-svg pixel" viewBox="0 0 100 92" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg">
+        <!-- ground -->
+        <rect x="0" y="80" width="100" height="12" fill="#1f6b3a"/>
+        <rect x="0" y="80" width="100" height="3" fill="#2b8a4a"/>
+        <!-- shadow -->
+        <rect x="20" y="80" width="60" height="4" fill="#0f2d18" opacity="0.5"/>
+        <!-- headstone body -->
+        <rect x="26" y="26" width="48" height="54" fill="#7c7a82"/>
+        <rect x="22" y="34" width="4" height="46" fill="#5f5d66"/>
+        <rect x="74" y="34" width="4" height="46" fill="#5f5d66"/>
+        <!-- rounded top, drawn in stepped pixels -->
+        <rect x="30" y="18" width="40" height="8" fill="#7c7a82"/>
+        <rect x="34" y="12" width="32" height="6" fill="#7c7a82"/>
+        <rect x="40" y="8" width="20" height="4" fill="#7c7a82"/>
+        <rect x="46" y="4" width="8" height="4" fill="#7c7a82"/>
+        <!-- highlight edge -->
+        <rect x="26" y="26" width="4" height="54" fill="#95929c"/>
+        <rect x="46" y="4" width="4" height="76" fill="#95929c" opacity="0.5"/>
+        <!-- crack detail (v rohu, mimo text) -->
+        <rect x="30" y="68" width="2" height="10" fill="#5f5d66"/>
+        <rect x="28" y="76" width="2" height="4" fill="#5f5d66"/>
+      </svg>
+      <div class="grave-text">
+        <span class="rip">R.I.P.</span>
+        <span class="dept">O69</span>
+        <span class="years">2024&ndash;2026</span>
+      </div>
+      <div class="candle"></div>
+    </div>
+  </div>
+
+  <div class="marquee-text">
+    <div class="label">V KINECH</div>
+    <div class="sub">OD 27. 8. 2026</div>
+  </div>
+
+  <!-- ============ TITLE IMAGE (ARCADE CABINET) ============ -->
+  <div class="cabinet">
+    <div class="screen-frame">
+      <img class="pixel" src="poster.png" alt="Filmový plakát Odcházení — Film Oty Melchera">
+    </div>
+  </div>
+
+  <!-- ============ PAGING GALLERY ============ -->
+  <div class="gallery">
+    <div class="gallery-title">&#9654; GALERIE &#9664;</div>
+
+    <div class="gallery-viewport" id="galleryViewport">
+      <!-- Slides se generuji z pole SLIDES ve skriptu nize -->
+    </div>
+
+    <div class="gallery-controls">
+      <button class="arcade-btn" id="prevBtn" aria-label="Předchozí snímek">&#9664;</button>
+      <div class="dots" id="dots"></div>
+      <button class="arcade-btn" id="nextBtn" aria-label="Další snímek">&#9654;</button>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span class="coin">&#9679;</span> INSERT COIN TO CONTINUE <span class="coin">&#9679;</span>
+  </div>
+
+</div>
+
+<script>
+  // ---------------------------------------------------------------
+  // GALERIE: kazdy "slide" je SAMOSTATNY soubor obrazku (galerie1.png az
+  // galerie5.png), ulozeny ve stejne slozce jako tento .html soubor -
+  // presne stejny princip jako u poster.png vyse. Chces vic/min snimku?
+  // Staci pridat/ubrat radek v poli SLIDES nize (src = nazev souboru,
+  // tag/caption = popisek zobrazeny na snimku).
+  // ---------------------------------------------------------------
+  const SLIDES = [
+    { src: "galerie1.png", tag: "LEVEL 1",    caption: "VSTUP DO KANCELARE" },
+    { src: "galerie2.png", tag: "BONUS ITEM", caption: "KLOBOUK +10 CHARISMA" },
+    { src: "galerie3.png", tag: "FINAL BOSS", caption: "RIGID FORM UNLOCKED" },
+    { src: "galerie4.png", tag: "SECRET",     caption: "TAJNY SPOJENEC NALEZEN" },
+    { src: "galerie5.png", tag: "GAME OVER",  caption: "ROLUJI TITULKY..." },
+  ];
+
+  const viewport = document.getElementById("galleryViewport");
+  const dotsWrap = document.getElementById("dots");
+  let current = 0;
+
+  SLIDES.forEach((s, i) => {
+    const slide = document.createElement("div");
+    slide.className = "gallery-slide" + (i === 0 ? " active" : "");
+    slide.innerHTML = `
+      <img src="${s.src}" alt="${s.caption}">
+      <div class="gallery-caption"><span class="tag">${s.tag}</span><br>${s.caption}</div>
+    `;
+    viewport.appendChild(slide);
+
+    const dot = document.createElement("button");
+    dot.className = "dot" + (i === 0 ? " active" : "");
+    dot.setAttribute("aria-label", "Snímek " + (i + 1));
+    dot.addEventListener("click", () => goTo(i));
+    dotsWrap.appendChild(dot);
+  });
+
+  const slideEls = viewport.querySelectorAll(".gallery-slide");
+  const dotEls = dotsWrap.querySelectorAll(".dot");
+
+  function goTo(i) {
+    slideEls[current].classList.remove("active");
+    dotEls[current].classList.remove("active");
+    current = (i + SLIDES.length) % SLIDES.length;
+    slideEls[current].classList.add("active");
+    dotEls[current].classList.add("active");
+  }
+
+  document.getElementById("prevBtn").addEventListener("click", () => goTo(current - 1));
+  document.getElementById("nextBtn").addEventListener("click", () => goTo(current + 1));
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowLeft") goTo(current - 1);
+    if (e.key === "ArrowRight") goTo(current + 1);
+  });
+
+  // touch swipe
+  let touchX = null;
+  viewport.addEventListener("touchstart", (e) => { touchX = e.touches[0].clientX; });
+  viewport.addEventListener("touchend", (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (dx > 40) goTo(current - 1);
+    if (dx < -40) goTo(current + 1);
+    touchX = null;
+  });
+</script>
+
+</body>
+</html>
