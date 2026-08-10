@@ -388,12 +388,16 @@
   soubor, presne pod temito nazvy (kod uz na ne odkazuje
   relativni cestou, takze po nahrani se zobrazi automaticky):
 
-    poster.png    - titulni plakat (nahore v "arkadovem" ramu)
-    galerie1.png  - snimek galerie #1 "LEVEL 1"
-    galerie2.png  - snimek galerie #2 "BONUS ITEM"
-    galerie3.png  - snimek galerie #3 "FINAL BOSS"
-    galerie4.png  - snimek galerie #4 "SECRET"
-    galerie5.png  - snimek galerie #5 "GAME OVER"
+    odchazeni.png    - titulni plakat (nahore v "arkadovem" ramu)
+    1.PNG  - snimek galerie #1 "LEVEL 1"
+    2.PNG  - snimek galerie #2 "BONUS ITEM"
+    3.PNG  - snimek galerie #3 "FINAL BOSS"
+    4.PNG  - snimek galerie #4 "SECRET"
+    5.PNG  - snimek galerie #5 "GAME OVER"
+    6.PNG  - snimek galerie #5 "GAME OVER"
+    7.PNG  - snimek galerie #5 "GAME OVER"
+    8.PNG  - snimek galerie #5 "GAME OVER"
+
 
   Chces vic/min snimku v galerii? Uprav pole SLIDES ve skriptu na
   konci souboru - kazdy radek je jeden snimek (src = nazev souboru,
@@ -501,11 +505,14 @@
   // tag/caption = popisek zobrazeny na snimku).
   // ---------------------------------------------------------------
   const SLIDES = [
-    { src: "galerie1.png", tag: "LEVEL 1",    caption: "VSTUP DO KANCELARE" },
-    { src: "galerie2.png", tag: "BONUS ITEM", caption: "KLOBOUK +10 CHARISMA" },
-    { src: "galerie3.png", tag: "FINAL BOSS", caption: "RIGID FORM UNLOCKED" },
-    { src: "galerie4.png", tag: "SECRET",     caption: "TAJNY SPOJENEC NALEZEN" },
-    { src: "galerie5.png", tag: "GAME OVER",  caption: "ROLUJI TITULKY..." },
+    { src: "1.PNG", tag: "LEVEL 1",    caption: "VSTUP DO KANCELARE" },
+    { src: "2.PNG", tag: "BONUS ITEM", caption: "KLOBOUK +10 CHARISMA" },
+    { src: "3.PNG", tag: "FINAL BOSS", caption: "RIGID FORM UNLOCKED" },
+    { src: "4.PNG", tag: "SECRET",     caption: "TAJNY SPOJENEC NALEZEN" },
+    { src: "5.PNG", tag: "GAME OVER",  caption: "ROLUJI TITULKY..." },
+    { src: "6.PNG", tag: "GAME OVER",  caption: "ROLUJI TITULKY..." },
+    { src: "7.PNG", tag: "GAME OVER",  caption: "ROLUJI TITULKY..." },
+    { src: "8.PNG", tag: "GAME OVER",  caption: "ROLUJI TITULKY..." },
   ];
 
   const viewport = document.getElementById("galleryViewport");
