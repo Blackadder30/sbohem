@@ -1,560 +1,329 @@
-<!DOCTYPE html>
-<html lang="cs">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RIP O69 — ODCHÁZENÍ</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --bg-void: #0a0118;
-    --bg-screen: #170b2e;
-    --bg-screen-2: #20123f;
-    --neon-magenta: #ff2e97;
-    --neon-cyan: #00f0ff;
-    --gold-klimt: #d4af37;
-    --gold-dim: #8a6f1f;
-    --text-bone: #ece4d0;
-    --stone-grey: #7c7a82;
-    --stone-dark: #4a4852;
-    --grass: #1f6b3a;
-  }
+import os
+import duckdb
+import numpy as np
+import pandas as pd
 
-  * { box-sizing: border-box; }
+print("=" * 80)
+print("EXPANZE VÝBĚRU NA CELOU POPULACI S VÁŽENÝM PRŮMĚREM (RD+BD)")
+print("(fyzická expanze: celé budovy + umělé zbytky, bez nahrazování NaN vah)")
+print("=" * 80)
 
-  html { scroll-behavior: smooth; }
+# --------------------------------------------------
+# 1. NAČTENÍ REÁLNÉ STRUKTURY POPULACE Z DUCKDB
+# --------------------------------------------------
+db_path = r"C:\Users\16880\OneDrive - Ministerstvo financí ČR\DUCKDB - DUCKDB\buildings.duckdb"
+print(f"Připojuji se k databázi DuckDB: {db_path}...")
 
-  body {
-    margin: 0;
-    background: var(--bg-void);
-    color: var(--text-bone);
-    font-family: 'VT323', monospace;
-    font-size: 22px;
-    overflow-x: hidden;
-    position: relative;
-  }
+con = duckdb.connect(db_path)
+print("Načítám reálné počty budov z populace...")
+df_populace_counts = con.execute("""
+    SELECT
+        ENEX_kategorie,
+        COUNT(*) as Pocet_v_Populaci_Real
+    FROM kategorie
+    GROUP BY ENEX_kategorie
+""").df()
+con.close()
 
-  /* ---------- CRT scanline + vignette overlay ---------- */
-  body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 50;
-    background:
-      repeating-linear-gradient(
-        to bottom,
-        rgba(0,0,0,0) 0px,
-        rgba(0,0,0,0) 2px,
-        rgba(0,0,0,0.18) 3px,
-        rgba(0,0,0,0.18) 4px
-      );
-    mix-blend-mode: multiply;
-  }
-  body::after {
-    content: "";
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 51;
-    background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,0.55) 100%);
-  }
+celkem_populace_db_vse = df_populace_counts["Pocet_v_Populaci_Real"].sum()
+print(f"Úspěšně načteno. Celková populace v DB (VŠECHNY kategorie): {celkem_populace_db_vse:,} budov.")
 
-  .pixel {
-    image-rendering: pixelated;
-    image-rendering: crisp-edges;
-  }
+# --------------------------------------------------
+# 2. NAČTENÍ DETAILNÍHO VÝBĚROVÉHO SOUBORU S ÚSPORAMI
+# --------------------------------------------------
+vyber_path = "ENEX_s_usporami_opatreni_rezidence.csv"
+print(f"\nNačítám podrobná výběrová data z {vyber_path}...")
 
-  /* ================= TOP QUOTE TICKER ================= */
-  .ticker {
-    position: relative;
-    z-index: 2;
-    width: 100%;
-    overflow: hidden;
-    background: #000;
-    border-bottom: 3px solid var(--gold-klimt);
-    box-shadow: 0 2px 12px rgba(212,175,55,0.35);
-    padding: 9px 0;
-    white-space: nowrap;
-  }
-  .ticker-track {
-    display: inline-block;
-    white-space: nowrap;
-    font-family: 'VT323', monospace;
-    font-size: 22px;
-    color: var(--neon-cyan);
-    text-shadow: 0 0 6px rgba(0,240,255,0.5);
-    animation: ticker-scroll 55s linear infinite;
-    padding-left: 100%;
-  }
-  .ticker-track .author {
-    color: var(--gold-klimt);
-  }
-  .ticker-track .sep {
-    color: var(--neon-magenta);
-    margin: 0 28px;
-  }
-  @keyframes ticker-scroll {
-    from { transform: translateX(0); }
-    to { transform: translateX(-50%); }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .ticker-track { animation: none; padding-left: 0; }
-  }
+if not os.path.exists(vyber_path):
+    raise FileNotFoundError(
+        f"Soubor {vyber_path} nebyl nalezen! Ujistěte se, že máte spuštěný "
+        f"předchozí krok výpočtu úspor."
+    )
 
-  .stage {
-    max-width: 640px;
-    margin: 0 auto;
-    padding: 28px 18px 60px;
-    position: relative;
-    z-index: 1;
-  }
+df_vyber = pd.read_csv(vyber_path, sep=";", decimal=",", low_memory=False)
 
-  /* ---------- Headline / marquee font ---------- */
-  .press {
-    font-family: 'Press Start 2P', monospace;
-  }
+# Striktní extrakce/čištění třídy A-G pro distribuční klíč
+df_vyber["trida_U"] = df_vyber["souc_pro_tepla_zat"].astype(str).str.strip().str.upper()
+platne_tridy = ["A", "B", "C", "D", "E", "F", "G"]
+df_vyber["trida_U"] = np.where(df_vyber["trida_U"].isin(platne_tridy), df_vyber["trida_U"], "Neznámo")
 
-  /* ================= TOMBSTONE (signature element) ================= */
-  .grave-wrap {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 22px;
-  }
-  .grave-scene {
-    width: 260px;
-    position: relative;
-  }
-  .grave-svg {
-    width: 100%;
-    display: block;
-  }
-  .grave-text {
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    text-align: center;
-    font-family: 'Press Start 2P', monospace;
-    color: #2b2930;
-    line-height: 1.9;
-  }
-  .grave-text .rip {
-    display: block;
-    font-size: 15px;
-    margin-top: 46px;
-    letter-spacing: 2px;
-  }
-  .grave-text .dept {
-    display: block;
-    font-size: 20px;
-    margin-top: 10px;
-    color: #171620;
-  }
-  .grave-text .years {
-    display: block;
-    font-size: 10px;
-    margin-top: 8px;
-    color: #3a3742;
-  }
-  .candle {
-    position: absolute;
-    left: 50%;
-    bottom: 6px;
-    transform: translateX(-50%);
-    width: 6px;
-    height: 6px;
-    background: var(--gold-klimt);
-    box-shadow: 0 0 6px 3px var(--gold-klimt);
-    animation: flicker 1.6s infinite steps(4);
-  }
-  @keyframes flicker {
-    0%, 100% { opacity: 1; }
-    30% { opacity: .5; }
-    55% { opacity: .85; }
-    80% { opacity: .35; }
-  }
+# Číselné ošetření klíčových energetických sloupců
+for col in ["celk_dod_ener", "celkprim", "PlochaEvzB", "combined_weight"]:
+    if col in df_vyber.columns:
+        df_vyber[col] = pd.to_numeric(
+            df_vyber[col].astype(str).str.replace(",", ".", regex=False), errors="coerce"
+        )
+    elif col == "combined_weight":
+        print("Upozornění: Sloupec 'combined_weight' nenalezen, nastavuji 1.0")
+        df_vyber[col] = 1.0
 
-  /* ================= ARCADE CABINET / TITLE IMAGE ================= */
-  .cabinet {
-    position: relative;
-    background: linear-gradient(180deg, var(--bg-screen-2), var(--bg-screen));
-    border: 4px solid var(--gold-dim);
-    border-radius: 10px;
-    padding: 18px;
-    box-shadow:
-      0 0 0 2px var(--bg-void),
-      0 0 24px rgba(212,175,55,0.25),
-      inset 0 0 30px rgba(0,0,0,0.6);
-  }
-  .cabinet::before, .cabinet::after {
-    content: "";
-    position: absolute;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    top: 8px;
-    background: var(--neon-cyan);
-    box-shadow: 0 0 8px 2px var(--neon-cyan);
-    animation: blink-slow 2.4s infinite;
-  }
-  .cabinet::before { left: 8px; }
-  .cabinet::after { right: 8px; animation-delay: 1.2s; }
-  @keyframes blink-slow {
-    0%, 45% { opacity: 1; }
-    50%, 95% { opacity: .15; }
-    100% { opacity: 1; }
-  }
+if "skupina_rdbd" in df_vyber.columns:
+    print(f"Načteno: {len(df_vyber):,} řádků "
+          f"(RD: {(df_vyber['skupina_rdbd'] == 'RD').sum():,}, "
+          f"BD: {(df_vyber['skupina_rdbd'] == 'BD').sum():,}).")
 
-  .screen-frame {
-    border: 3px solid var(--bg-void);
-    border-radius: 4px;
-    overflow: hidden;
-    background: #000;
-    position: relative;
-  }
-  .screen-frame img {
-    display: block;
-    width: 100%;
-    height: auto;
-  }
-  .screen-frame::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    box-shadow: inset 0 0 40px rgba(0,0,0,0.65);
-    pointer-events: none;
-  }
+# --------------------------------------------------
+# 2a. NORMALIZACE VAH PODLE POPULACE 2020 (R KÓD)
+# --------------------------------------------------
+print("\n--- Počítám normalizovanou váhu (combined_weight_norm) ---")
 
-  .marquee-text {
-    text-align: center;
-    margin: 4px 0 22px;
-  }
-  .marquee-text .label {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 20px;
-    color: var(--neon-magenta);
-    text-shadow: 0 0 8px var(--neon-magenta), 0 0 18px rgba(255,46,151,0.55);
-    animation: blink-text 1.1s steps(1) infinite;
-  }
-  @keyframes blink-text {
-    0%, 60% { opacity: 1; }
-    61%, 100% { opacity: 0.25; }
-  }
-  .marquee-text .sub {
-    font-family: 'VT323', monospace;
-    font-size: 32px;
-    color: var(--gold-klimt);
-    letter-spacing: 1.5px;
-    margin-top: 6px;
-    text-shadow: 0 0 10px rgba(212,175,55,0.4);
-  }
+# ZADEJTE CÍLOVÉ PODLAHOVÉ PLOCHY ROKU 2020 (pop_rd a pop_bd):
+pop_rd = 12345678.9  # Doplňte přesnou hodnotu pop_rd pro RD (m²)
+pop_bd = 9876543.2   # Doplňte přesnou hodnotu pop_bd pro BD (m²)
 
-  /* ================= GALLERY ================= */
-  .gallery {
-    margin-top: 40px;
-  }
-  .gallery-title {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 12px;
-    color: var(--neon-cyan);
-    text-shadow: 0 0 6px var(--neon-cyan);
-    text-align: center;
-    margin-bottom: 14px;
-  }
-  .gallery-viewport {
-    position: relative;
-    border: 3px solid var(--gold-dim);
-    border-radius: 6px;
-    background: #000;
-    aspect-ratio: 4 / 3;
-    overflow: hidden;
-    box-shadow: 0 0 18px rgba(212,175,55,0.2), inset 0 0 24px rgba(0,0,0,0.7);
-  }
-  .gallery-slide {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    transition: opacity 0.35s steps(6);
-    pointer-events: none;
-  }
-  .gallery-slide.active {
-    opacity: 1;
-    pointer-events: auto;
-  }
-  .gallery-slide img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    background: #000;
-  }
+if "skupina_rdbd" in df_vyber.columns:
+    mask_rd = (df_vyber["skupina_rdbd"] == "RD") & df_vyber["PlochaEvzB"].notna() & df_vyber["combined_weight"].notna()
+    mask_bd = (df_vyber["skupina_rdbd"] == "BD") & df_vyber["PlochaEvzB"].notna() & df_vyber["combined_weight"].notna()
 
-  .gallery-controls {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 14px;
-    margin-top: 14px;
-  }
-  .arcade-btn {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 14px;
-    color: var(--bg-void);
-    background: var(--neon-cyan);
-    border: none;
-    border-bottom: 4px solid #0090a0;
-    border-radius: 4px;
-    padding: 10px 14px;
-    cursor: pointer;
-    user-select: none;
-  }
-  .arcade-btn:active {
-    border-bottom-width: 1px;
-    transform: translateY(3px);
-  }
-  .arcade-btn:focus-visible {
-    outline: 3px solid var(--neon-magenta);
-    outline-offset: 2px;
-  }
+    mass_rd = (df_vyber.loc[mask_rd, "PlochaEvzB"] * df_vyber.loc[mask_rd, "combined_weight"]).sum()
+    mass_bd = (df_vyber.loc[mask_bd, "PlochaEvzB"] * df_vyber.loc[mask_bd, "combined_weight"]).sum()
 
-  .dots {
-    display: flex;
-    gap: 8px;
-  }
-  .dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: var(--stone-grey);
-    border: none;
-    cursor: pointer;
-    padding: 0;
-  }
-  .dot.active {
-    background: var(--gold-klimt);
-    box-shadow: 0 0 6px var(--gold-klimt);
-  }
-  .dot:focus-visible {
-    outline: 2px solid var(--neon-cyan);
-    outline-offset: 2px;
-  }
+    scale_rd = pop_rd / mass_rd if mass_rd > 0 else np.nan
+    scale_bd = pop_bd / mass_bd if mass_bd > 0 else np.nan
 
-  /* ================= TOCIVY ELEMENT (jura.png) - uplne dole ================= */
-  .jura-spin-wrap {
-    text-align: center;
-    margin-top: 46px;
-  }
-  .jura-spin {
-    display: inline-block;
-    width: 90px;
-    height: auto;
-    animation: spin-jura 4s linear infinite;
-  }
-  @keyframes spin-jura {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
+    df_vyber["combined_weight_norm"] = np.nan
+    df_vyber.loc[df_vyber["skupina_rdbd"] == "RD", "combined_weight_norm"] = df_vyber.loc[df_vyber["skupina_rdbd"] == "RD", "combined_weight"] * scale_rd
+    df_vyber.loc[df_vyber["skupina_rdbd"] == "BD", "combined_weight_norm"] = df_vyber.loc[df_vyber["skupina_rdbd"] == "BD", "combined_weight"] * scale_bd
+else:
+    df_vyber["combined_weight_norm"] = df_vyber["combined_weight"]
 
-  @media (prefers-reduced-motion: reduce) {
-    .candle, .cabinet::before, .cabinet::after, .marquee-text .label, .jura-spin {
-      animation: none !important;
-      opacity: 1 !important;
-    }
-  }
+# --------------------------------------------------
+# 1b. OMEZENÍ POPULAČNÍHO ZÁKLADU NA KATEGORIE VE VÝBĚRU
+# --------------------------------------------------
+kategorie_ve_vyberu = set(df_vyber["ENEX_kategorie"].unique())
+maska_relevantni_kat = df_populace_counts["ENEX_kategorie"].isin(kategorie_ve_vyberu)
+celkem_populace_db = df_populace_counts.loc[maska_relevantni_kat, "Pocet_v_Populaci_Real"].sum()
 
-  @media (max-width: 420px) {
-    body { font-size: 19px; }
-    .grave-scene { width: 210px; }
-    .grave-text .rip { font-size: 12px; margin-top: 36px; }
-    .grave-text .dept { font-size: 16px; }
-  }
-</style>
-</head>
-<body>
+kategorie_db_bez_vyberu = sorted(
+    set(df_populace_counts.loc[~maska_relevantni_kat, "ENEX_kategorie"].unique())
+)
+print(f"\nPopulační základ omezen na kategorie přítomné ve výběru "
+      f"({sorted(kategorie_ve_vyberu)}): {celkem_populace_db:,} budov "
+      f"(z {celkem_populace_db_vse:,} v celé DB).")
+if kategorie_db_bez_vyberu:
+    print(f"  Kategorie v DB MIMO výběr (ignorovány): {kategorie_db_bez_vyberu}")
 
-<!--
-  ============================================================
-  OBRAZKY K NAHRANI - uloz do STEJNE SLOZKY jako tento .html
-  soubor, presne pod temito nazvy (kod uz na ne odkazuje
-  relativni cestou, takze po nahrani se zobrazi automaticky):
+# --------------------------------------------------
+# 2b. DIAGNOSTIKA CHYBĚJÍCÍCH VAH
+# --------------------------------------------------
+pocet_chybejici_vaha = df_vyber["combined_weight"].isna().sum()
+print(f"\nPočet řádků s chybějící 'combined_weight' (NaN): {pocet_chybejici_vaha:,}")
 
-    odchazeni.png    - titulni plakat (nahore v "arkadovem" ramu)
-    1.PNG az 16.PNG  - snimky galerie (16 snimku, listuje se sipkami/tecky)
-    jura.png         - tocivy element uplne dole na strance
+# --------------------------------------------------
+# 3. VÝPOČET DISTRIBUČNÍCH VAH (mezi podskupinami)
+# --------------------------------------------------
+print("\nPočítám vážené podíly kombinací [Kategorie + Vypočtená kategorie + Třída]...")
 
-  Chces vic/min snimku v galerii? Uprav pole SLIDES ve skriptu na
-  konci souboru - kazdy radek je jeden snimek (jen src = nazev souboru,
-  zadne popisky se uz nezobrazuji).
-  ============================================================
--->
+GRP = ["ENEX_kategorie", "kategorie_vypoctena", "trida_U"]
 
-<div class="ticker" role="marquee" aria-label="Citáty o odcházení">
-  <div class="ticker-track">
-    <span>„Bolest z opuštění bývá často menší než bolest z neustálého setrvávání.“ <span class="author">— Erich Maria Remarque</span></span>
-    <span class="sep">★</span>
-    <span>„Někdy musíte odejít, ne proto, aby si někdo všiml, že tam nejste, ale aby si všiml své vlastní hodnoty ten, kdo odešel.“ <span class="author">— Paulo Coelho</span></span>
-    <span class="sep">★</span>
-    <span>„Umění života spočívá v vědění, kdy držet a kdy nechat jít.“ <span class="author">— Lao-c'</span></span>
-    <span class="sep">★</span>
-    <span>„Ochota odejít z místa, kde už nevzkvétáte, je prvním krokem k tomu, abyste našli sami sebe.“ <span class="author">— Seneca</span></span>
-    <span class="sep">★</span>
-    <!-- obsah zopakovan pro bezesvy (seamless) loop animace -->
-    <span>„Bolest z opuštění bývá často menší než bolest z neustálého setrvávání.“ <span class="author">— Erich Maria Remarque</span></span>
-    <span class="sep">★</span>
-    <span>„Někdy musíte odejít, ne proto, aby si někdo všiml, že tam nejste, ale aby si všiml své vlastní hodnoty ten, kdo odešel.“ <span class="author">— Paulo Coelho</span></span>
-    <span class="sep">★</span>
-    <span>„Umění života spočívá v vědění, kdy držet a kdy nechat jít.“ <span class="author">— Lao-c'</span></span>
-    <span class="sep">★</span>
-    <span>„Ochota odejít z místa, kde už nevzkvétáte, je prvním krokem k tomu, abyste našli sami sebe.“ <span class="author">— Seneca</span></span>
-    <span class="sep">★</span>
-  </div>
-</div>
+df_vyber_agregovany = (
+    df_vyber.groupby(GRP)
+    .agg(
+        Pocet_v_Vyberu=("IdHlasenky", "count"),
+        Suma_Vah_Kombinace=("combined_weight", "sum"),
+    )
+    .reset_index()
+)
 
-<div class="stage">
+df_suma_hlavni = (
+    df_vyber.groupby("ENEX_kategorie")["combined_weight"]
+    .sum()
+    .reset_index()
+    .rename(columns={"combined_weight": "Suma_Vah_Hlavni"})
+)
 
-  <!-- ============ PIXEL TOMBSTONE ============ -->
-  <div class="grave-wrap">
-    <div class="grave-scene">
-      <svg class="grave-svg pixel" viewBox="0 0 100 92" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg">
-        <!-- ground -->
-        <rect x="0" y="80" width="100" height="12" fill="#1f6b3a"/>
-        <rect x="0" y="80" width="100" height="3" fill="#2b8a4a"/>
-        <!-- shadow -->
-        <rect x="20" y="80" width="60" height="4" fill="#0f2d18" opacity="0.5"/>
-        <!-- headstone body -->
-        <rect x="26" y="26" width="48" height="54" fill="#7c7a82"/>
-        <rect x="22" y="34" width="4" height="46" fill="#5f5d66"/>
-        <rect x="74" y="34" width="4" height="46" fill="#5f5d66"/>
-        <!-- rounded top, drawn in stepped pixels -->
-        <rect x="30" y="18" width="40" height="8" fill="#7c7a82"/>
-        <rect x="34" y="12" width="32" height="6" fill="#7c7a82"/>
-        <rect x="40" y="8" width="20" height="4" fill="#7c7a82"/>
-        <rect x="46" y="4" width="8" height="4" fill="#7c7a82"/>
-        <!-- highlight edge -->
-        <rect x="26" y="26" width="4" height="54" fill="#95929c"/>
-        <rect x="46" y="4" width="4" height="76" fill="#95929c" opacity="0.5"/>
-        <!-- crack detail (v rohu, mimo text) -->
-        <rect x="30" y="68" width="2" height="10" fill="#5f5d66"/>
-        <rect x="28" y="76" width="2" height="4" fill="#5f5d66"/>
-      </svg>
-      <div class="grave-text">
-        <span class="rip">R.I.P.</span>
-        <span class="dept">O69</span>
-        <span class="years">2024&ndash;2026</span>
-      </div>
-      <div class="candle"></div>
-    </div>
-  </div>
+df_klic = pd.merge(df_vyber_agregovany, df_suma_hlavni, on="ENEX_kategorie", how="left")
+df_klic["Procentualni_Podil"] = np.where(
+    df_klic["Suma_Vah_Hlavni"] > 0,
+    df_klic["Suma_Vah_Kombinace"] / df_klic["Suma_Vah_Hlavni"],
+    0,
+)
 
-  <div class="marquee-text">
-    <div class="label">V KINECH</div>
-    <div class="sub">OD 27. 8. 2026</div>
-  </div>
+# --------------------------------------------------
+# 4. PŘENOS KLÍČE A CÍLOVÉ MNOŽSTVÍ V POPULACI
+# --------------------------------------------------
+print("Aplikuji výběrový klíč na reálné počty z DB...")
+df_klic = pd.merge(df_klic, df_populace_counts, on="ENEX_kategorie", how="left")
 
-  <!-- ============ TITLE IMAGE (ARCADE CABINET) ============ -->
-  <div class="cabinet">
-    <div class="screen-frame">
-      <img class="pixel" src="odchazeni.PNG" alt="Filmový plakát Odcházení — Film Oty Melchera">
-    </div>
-  </div>
+df_klic["Target_Populace_Kombinace"] = (
+    df_klic["Pocet_v_Populaci_Real"].fillna(0) * df_klic["Procentualni_Podil"]
+)
 
-  <!-- ============ PAGING GALLERY ============ -->
-  <div class="gallery">
-    <div class="gallery-title">&#9654; GALERIE &#9664;</div>
+# --------------------------------------------------
+# 5. VEKTORIZOVANÝ EXPANZNÍ GENERÁTOR (fyzická replikace řádků)
+# --------------------------------------------------
+print("\nSpouštím expanzní generátor populace (proporční dle combined_weight)...")
 
-    <div class="gallery-viewport" id="galleryViewport">
-      <!-- Slides se generuji z pole SLIDES ve skriptu nize -->
-    </div>
+df_vyber_s_klice = pd.merge(
+    df_vyber,
+    df_klic[GRP + ["Target_Populace_Kombinace"]],
+    on=GRP,
+    how="left",
+)
+df_vyber_s_klice["Target_Populace_Kombinace"] = df_vyber_s_klice["Target_Populace_Kombinace"].fillna(0.0)
 
-    <div class="gallery-controls">
-      <button class="arcade-btn" id="prevBtn" aria-label="Předchozí snímek">&#9664;</button>
-      <div class="dots" id="dots"></div>
-      <button class="arcade-btn" id="nextBtn" aria-label="Další snímek">&#9654;</button>
-    </div>
-  </div>
+suma_vah_podskupina = df_vyber_s_klice.groupby(GRP)["combined_weight"].transform("sum")
+maska_vahy_platna = df_vyber_s_klice["combined_weight"].notna()
 
-  <div class="jura-spin-wrap">
-    <img src="jura.png" class="jura-spin pixel" alt="Jura">
-  </div>
+df_vyber_s_klice["podil_v_podskupine"] = np.where(
+    maska_vahy_platna & (suma_vah_podskupina > 0),
+    df_vyber_s_klice["combined_weight"] / suma_vah_podskupina,
+    0.0,
+)
 
-</div>
+df_vyber_s_klice["target_na_jeden_radek"] = (
+    df_vyber_s_klice["Target_Populace_Kombinace"] * df_vyber_s_klice["podil_v_podskupine"]
+).fillna(0.0)
 
-<script>
-  // ---------------------------------------------------------------
-  // GALERIE: kazdy "slide" je SAMOSTATNY soubor obrazku (galerie1.png az
-  // galerie5.png), ulozeny ve stejne slozce jako tento .html soubor -
-  // presne stejny princip jako u poster.png vyse. Chces vic/min snimku?
-  // Staci pridat/ubrat radek v poli SLIDES nize (src = nazev souboru,
-  // tag/caption = popisek zobrazeny na snimku).
-  // ---------------------------------------------------------------
-  const SLIDES = [
-    { src: "1.PNG" },
-    { src: "2.PNG" },
-    { src: "3.PNG" },
-    { src: "4.PNG" },
-    { src: "5.PNG" },
-    { src: "6.PNG" },
-    { src: "7.PNG" },
-    { src: "8.PNG" },
-    { src: "9.PNG" },
-    { src: "10.PNG" },
-    { src: "11.PNG" },
-    { src: "12.PNG" },
-    { src: "13.PNG" },
-    { src: "14.PNG" },
-    { src: "15.PNG" },
-    { src: "16.PNG" },
-  ];
+df_vyber_s_klice["cela_cast"] = np.floor(df_vyber_s_klice["target_na_jeden_radek"]).astype(int)
+df_vyber_s_klice["desetinny_zbytek"] = (
+    df_vyber_s_klice["target_na_jeden_radek"] - df_vyber_s_klice["cela_cast"]
+)
 
-  const viewport = document.getElementById("galleryViewport");
-  const dotsWrap = document.getElementById("dots");
-  let current = 0;
+print("Generuji celé budovy...")
+df_cele_budovy = df_vyber_s_klice.loc[
+    df_vyber_s_klice.index.repeat(df_vyber_s_klice["cela_cast"])
+].copy()
+df_cele_budovy["vaha2"] = 1.0
+df_cele_budovy["typ_radku_populace"] = "Cela_budova"
 
-  SLIDES.forEach((s, i) => {
-    const slide = document.createElement("div");
-    slide.className = "gallery-slide" + (i === 0 ? " active" : "");
-    slide.innerHTML = `
-      <img src="${s.src}" alt="Snímek galerie ${i + 1}">
-    `;
-    viewport.appendChild(slide);
+print("Generuji umělé zbytky budov...")
+df_zbytky = df_vyber_s_klice[df_vyber_s_klice["desetinny_zbytek"] > 0.00001].copy()
+df_zbytky["vaha2"] = df_zbytky["desetinny_zbytek"]
+df_zbytky["typ_radku_populace"] = "Umely_zbytek_budovy"
 
-    const dot = document.createElement("button");
-    dot.className = "dot" + (i === 0 ? " active" : "");
-    dot.setAttribute("aria-label", "Snímek " + (i + 1));
-    dot.addEventListener("click", () => goTo(i));
-    dotsWrap.appendChild(dot);
-  });
+print("Slucuji generovaná data do výsledné tabulky...")
+df_populace_celkova = pd.concat([df_cele_budovy, df_zbytky], ignore_index=True)
 
-  const slideEls = viewport.querySelectorAll(".gallery-slide");
-  const dotEls = dotsWrap.querySelectorAll(".dot");
+sloupce_k_odstraneni = [
+    "Target_Populace_Kombinace",
+    "podil_v_podskupine",
+    "target_na_jeden_radek",
+    "cela_cast",
+    "desetinny_zbytek",
+]
+df_populace_celkova = df_populace_celkova.drop(columns=sloupce_k_odstraneni, errors="ignore")
 
-  function goTo(i) {
-    slideEls[current].classList.remove("active");
-    dotEls[current].classList.remove("active");
-    current = (i + SLIDES.length) % SLIDES.length;
-    slideEls[current].classList.add("active");
-    dotEls[current].classList.add("active");
-  }
+for col in ["celk_dod_ener", "celkprim", "PlochaEvzB", "combined_weight", "combined_weight_norm"]:
+    if col in df_populace_celkova.columns:
+        df_populace_celkova[col] = pd.to_numeric(
+            df_populace_celkova[col].astype(str).str.replace(",", ".", regex=False), errors="coerce"
+        )
 
-  document.getElementById("prevBtn").addEventListener("click", () => goTo(current - 1));
-  document.getElementById("nextBtn").addEventListener("click", () => goTo(current + 1));
+# --------------------------------------------------
+# 6. KONTROLA VALIDITY GENERÁTORU A VÁŽENÝCH PRŮMĚRŮ
+# --------------------------------------------------
+vysledna_suma_vaha2 = df_populace_celkova["vaha2"].sum()
+rozdil_oproti_db = vysledna_suma_vaha2 - celkem_populace_db
 
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "ArrowLeft") goTo(current - 1);
-    if (e.key === "ArrowRight") goTo(current + 1);
-  });
 
-  // touch swipe
-  let touchX = null;
-  viewport.addEventListener("touchstart", (e) => { touchX = e.touches[0].clientX; });
-  viewport.addEventListener("touchend", (e) => {
-    if (touchX === null) return;
-    const dx = e.changedTouches[0].clientX - touchX;
-    if (dx > 40) goTo(current - 1);
-    if (dx < -40) goTo(current + 1);
-    touchX = null;
-  });
-</script>
+def _vaz_prumer(frame, hodnota, vahy):
+    """Vážený průměr hodnoty; vahy je Series stejné délky jako frame."""
+    x = frame[hodnota]
+    m = x.notna() & vahy.notna() & (vahy > 0)
+    return (x[m] * vahy[m]).sum() / vahy[m].sum() if m.any() else np.nan
 
-</body>
-</html>
+
+# A. celk_dod_ener – výběr (combined_weight vs combined_weight_norm) vs populace (vaha2)
+vaz_prumer_vyber = _vaz_prumer(df_vyber, "celk_dod_ener", df_vyber["combined_weight"])
+vaz_prumer_vyber_norm = _vaz_prumer(df_vyber, "celk_dod_ener", df_vyber["combined_weight_norm"])
+vaz_prumer_populace = _vaz_prumer(df_populace_celkova, "celk_dod_ener", df_populace_celkova["vaha2"])
+
+# B. celkprim vážené PLOCHOU – výběr (orig váha vs normovaná váha) vs populace (vaha2*plocha)
+vaz_prumer_prim_vyber = _vaz_prumer(
+    df_vyber, "celkprim", df_vyber["combined_weight"] * df_vyber["PlochaEvzB"]
+)
+vaz_prumer_prim_vyber_norm = _vaz_prumer(
+    df_vyber, "celkprim", df_vyber["combined_weight_norm"] * df_vyber["PlochaEvzB"]
+)
+vaz_prumer_prim_populace = _vaz_prumer(
+    df_populace_celkova, "celkprim", df_populace_celkova["vaha2"] * df_populace_celkova["PlochaEvzB"]
+)
+
+print("\n" + "=" * 80)
+print("KONTROLA GENERÁTORU CELÉ POPULACE:")
+print(f" - Počet řádků ve výběru s chybějící vahou: {pocet_chybejici_vaha:,}")
+print(f" - Celkový počet fyzických řádků populace:  {len(df_populace_celkova):,}")
+print(f"   * Celých budov (vaha2=1.0):              "
+      f"{(df_populace_celkova['typ_radku_populace']=='Cela_budova').sum():,}")
+print(f"   * Umělých řádků (zbytků):                "
+      f"{(df_populace_celkova['typ_radku_populace']=='Umely_zbytek_budovy').sum():,}")
+print(f" - Suma 'vaha2':                            {vysledna_suma_vaha2:,.3f}")
+print(f" - Reálná velikost populace v DuckDB:       {celkem_populace_db:,}")
+print(f" - Odchylka:                                {rozdil_oproti_db:,.6f}")
+print("-" * 80)
+print("KONTROLA celk_dod_ener:")
+print(f" - Vážený průměr VÝBĚR (combined_weight):     {vaz_prumer_vyber:,.4f}")
+print(f" - Vážený průměr VÝBĚR (combined_weight_norm):{vaz_prumer_vyber_norm:,.4f}")
+print(f" - Vážený průměr POPULACE (vaha2):            {vaz_prumer_populace:,.4f}")
+print("-" * 80)
+print("KONTROLA celkprim VÁŽENÉ PLOCHOU:")
+print(f" - Vážený průměr VÝBĚR (weight*plocha):       {vaz_prumer_prim_vyber:,.4f}")
+print(f" - Vážený průměr VÝBĚR (weight_norm*plocha):  {vaz_prumer_prim_vyber_norm:,.4f}")
+print(f" - Vážený průměr POPULACE (vaha2*plocha):     {vaz_prumer_prim_populace:,.4f}")
+
+rozdil_prim = abs(vaz_prumer_prim_vyber - vaz_prumer_prim_populace)
+rozdil_prim_norm = abs(vaz_prumer_prim_vyber_norm - vaz_prumer_prim_populace)
+print(f"   Rozdíl (orig vs populace):  {rozdil_prim:,.4f}")
+print(f"   Rozdíl (norm vs populace):  {rozdil_prim_norm:,.4f}")
+print("-" * 80)
+
+# --------------------------------------------------
+# 6a. STEJNÉ KONTROLY ZVLÁŠŤ PRO RD A ZVLÁŠŤ PRO BD
+# --------------------------------------------------
+if "skupina_rdbd" in df_vyber.columns and "skupina_rdbd" in df_populace_celkova.columns:
+    print("KONTROLA ZVLÁŠŤ PODLE SKUPINY (RD / BD):")
+    for skupina in ["RD", "BD"]:
+        sub_vyber = df_vyber[df_vyber["skupina_rdbd"] == skupina]
+        sub_populace = df_populace_celkova[df_populace_celkova["skupina_rdbd"] == skupina]
+
+        vp_dod_vyber = _vaz_prumer(sub_vyber, "celk_dod_ener", sub_vyber["combined_weight"])
+        vp_dod_vyber_norm = _vaz_prumer(sub_vyber, "celk_dod_ener", sub_vyber["combined_weight_norm"])
+        vp_dod_populace = _vaz_prumer(sub_populace, "celk_dod_ener", sub_populace["vaha2"])
+
+        vp_prim_vyber = _vaz_prumer(
+            sub_vyber, "celkprim", sub_vyber["combined_weight"] * sub_vyber["PlochaEvzB"]
+        )
+        vp_prim_vyber_norm = _vaz_prumer(
+            sub_vyber, "celkprim", sub_vyber["combined_weight_norm"] * sub_vyber["PlochaEvzB"]
+        )
+        vp_prim_populace = _vaz_prumer(
+            sub_populace, "celkprim", sub_populace["vaha2"] * sub_populace["PlochaEvzB"]
+        )
+
+        print(f" --- {skupina} (výběr n={len(sub_vyber):,}, populace n={len(sub_populace):,}, "
+              f"suma vaha2={sub_populace['vaha2'].sum():,.1f}) ---")
+        print(f"   celk_dod_ener - výběr (orig): {vp_dod_vyber:,.4f} | výběr (norm): {vp_dod_vyber_norm:,.4f} | populace: {vp_dod_populace:,.4f}")
+        print(f"   celkprim (plochou) - výběr (orig): {vp_prim_vyber:,.4f} | výběr (norm): {vp_prim_vyber_norm:,.4f} | populace: {vp_prim_populace:,.4f}")
+    print("-" * 80)
+
+# --------------------------------------------------
+# 6b. SUMA CELKOVÉ PODLAHOVÉ PLOCHY (PlochaEvzB)
+# --------------------------------------------------
+suma_plocha_populace = (df_populace_celkova["PlochaEvzB"] * df_populace_celkova["vaha2"]).sum()
+suma_plocha_vyber_nevazene = df_vyber["PlochaEvzB"].sum()
+print("KONTROLA CELKOVÉ PLOCHY (PlochaEvzB):")
+print(f" - Suma PlochaEvzB v populaci (váženo vaha2):  {suma_plocha_populace:,.1f} m²")
+print(f" - Suma PlochaEvzB ve výběru (nevážená, info): {suma_plocha_vyber_nevazene:,.1f} m²")
+
+if "skupina_rdbd" in df_populace_celkova.columns:
+    for skupina in ["RD", "BD"]:
+        sub_populace = df_populace_celkova[df_populace_celkova["skupina_rdbd"] == skupina]
+        suma_plocha_skupina = (sub_populace["PlochaEvzB"] * sub_populace["vaha2"]).sum()
+        print(f"   * {skupina}: {suma_plocha_skupina:,.1f} m²")
+print("=" * 80)
+
+# --------------------------------------------------
+# 7. ULOŽENÍ VÝSLEDNÉ POPULACE
+# --------------------------------------------------
+output_populace_csv = "ENEX_populace_rozsirena_rezidence.csv"
+print(f"\nUkládám kompletní populaci s 'vaha2' do {output_populace_csv}...")
+
+df_populace_celkova.to_csv(
+    output_populace_csv,
+    sep=";",
+    decimal=",",
+    encoding="utf-8-sig",
+    index=False,
+)
+print("Hotovo! Dataset fyzicky rozšířen na celou populaci (RD+BD).")
