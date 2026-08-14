@@ -216,6 +216,14 @@
     margin-top: 6px;
     text-shadow: 0 0 10px rgba(212,175,55,0.4);
   }
+  .marquee-text .venue {
+    font-family: 'VT323', monospace;
+    font-size: 24px;
+    color: var(--neon-cyan);
+    letter-spacing: 1px;
+    margin-top: 6px;
+    text-shadow: 0 0 8px rgba(0,240,255,0.4);
+  }
 
   /* ================= GALLERY ================= */
   .gallery {
@@ -322,6 +330,54 @@
     to { transform: rotate(360deg); }
   }
 
+  /* ================= FAREWELL / CLOSING SECTION ================= */
+  .farewell {
+    margin-top: 48px;
+    text-align: center;
+    border-top: 3px solid var(--gold-dim);
+    padding-top: 30px;
+  }
+  .farewell .thanks {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 14px;
+    color: var(--gold-klimt);
+    text-shadow: 0 0 8px rgba(212,175,55,0.5);
+    line-height: 2;
+  }
+  .farewell .committee {
+    font-family: 'VT323', monospace;
+    font-size: 26px;
+    color: var(--neon-magenta);
+    text-shadow: 0 0 8px rgba(255,46,151,0.4);
+    margin-top: 14px;
+  }
+  .photo-frame {
+    margin: 26px auto 0;
+    width: 260px;
+    aspect-ratio: 4 / 3;
+    border: 3px solid var(--gold-dim);
+    border-radius: 6px;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 18px rgba(212,175,55,0.2);
+    overflow: hidden;
+  }
+  .photo-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: none;
+  }
+  .photo-frame .placeholder {
+    font-family: 'VT323', monospace;
+    font-size: 20px;
+    color: var(--stone-grey);
+    text-align: center;
+    padding: 10px;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .candle, .cabinet::before, .cabinet::after, .marquee-text .label, .jura-spin {
       animation: none !important;
@@ -399,6 +455,7 @@
   <div class="marquee-text">
     <div class="label">V KINECH</div>
     <div class="sub">OD 27. 8. 2026</div>
+    <div class="venue">Baden Baden Štvanice od 17 hodin</div>
   </div>
 
   <!-- ============ TITLE IMAGE (ARCADE CABINET) ============ -->
@@ -425,6 +482,16 @@
 
   <div class="jura-spin-wrap">
     <img src="jura.png" class="jura-spin pixel" alt="Jura">
+  </div>
+
+  <!-- ============ FAREWELL / CLOSING ============ -->
+  <div class="farewell">
+    <div class="thanks">Těšíme se na Vás!</div>
+    <div class="committee">Vaše činnost ukončující Party Planning Committee</div>
+    <div class="photo-frame">
+      <img src="foto.PNG" alt="Společná fotka" id="closingPhoto">
+      <div class="placeholder" id="closingPhotoPlaceholder">sem fotku<br>(foto.png)</div>
+    </div>
   </div>
 
 </div>
@@ -496,6 +563,18 @@
     if (dx > 40) goTo(current - 1);
     if (dx < -40) goTo(current + 1);
     touchX = null;
+  });
+
+  // Skryje placeholder fotky, pokud se foto.png skutečně podaří načíst.
+  const closingPhoto = document.getElementById("closingPhoto");
+  const closingPhotoPlaceholder = document.getElementById("closingPhotoPlaceholder");
+  closingPhoto.addEventListener("load", () => {
+    closingPhoto.style.display = "block";
+    closingPhotoPlaceholder.style.display = "none";
+  });
+  closingPhoto.addEventListener("error", () => {
+    closingPhoto.style.display = "none";
+    closingPhotoPlaceholder.style.display = "block";
   });
 </script>
 
